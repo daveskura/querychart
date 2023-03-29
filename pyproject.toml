@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling","psycopg2","garbledave_package","schemawizard_package"]
+
+build-backend = "hatchling.build"
+
+[project]
+name = "querychart_package"
+version = "1.0.1"
+dependencies = [
+  'psycopg2 >= 2.9.5',
+  'schemawizard_package >= 2.3.2',
+  'garbledave_package >= 1.0.0'
+]
+authors = [
+  { name="Dave Skura", email="dskura@gmail.com" },
+]
+description = "A wrapper for simplified matplotlib usage"
+readme = "README.md"
+requires-python = ">=3.7"
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/daveskura/querychart"
+"Author Linkedin" = "https://www.linkedin.com/in/2166883"

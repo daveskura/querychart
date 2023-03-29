@@ -1,0 +1,14 @@
+cal_dt,product,customer,sales_amt,cost
+2023/03/29,food,dave,10.99,8.55
+2023/03/30,electronics,dave,15.99,18.45
+2023/03/31,booze,dave,20.99,2.35
+2023/04/01,food,dave,5.99,43.25
+2023/04/02,electronics,dave,8.99,8.85
+2023/04/03,electronics,dave,10.99,9.65
+2023/04/04,electronics,dave,15.99,28.45
+2023/04/05,booze,dave,25.99,18.35
+2023/04/06,electronics,dave,10.99,5.45
+2023/04/07,women,dave,8.99,3.55
+2023/04/08,food,dave,5.99,2.65
+2023/04/09,electronics,dave,10.99,5.75
+2023/04/10,electronics,dave,20.99,18.75
