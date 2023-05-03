@@ -2,9 +2,11 @@
   Dave Skura, 2023
 """
 import sys
+import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+from datetime import datetime
 from schemawizard_package.schemawizard import schemawiz
 
 def main():
@@ -31,13 +33,63 @@ def main():
 	#charter().csv_querychart('sales.csv','SELECT cal_dt,sales_amt,cost FROM sales.csv ORDER BY cal_dt')
 	#charter().csv_widequerychart('widesales.csv',"SELECT legend," + '"2023/03/29","2023/03/30","2023/03/31","2023/04/01" FROM widesales.csv')
 
-
 	#charter().showcsv('sales.csv','SELECT cal_dt FROM sales.csv ORDER BY cal_dt')
 	#charter().showcsv('widesales.csv','SELECT * FROM widesales.csv')
+
+	#name,start_dt,end_dt,progress_pct
+	#charter().progresscsv('gant_data.csv')
 
 class charter():
 	def __init__(self):
 		self.schwiz = schemawiz()
+
+	# Stages	start_dt	end_dt	progress_pct
+	# ----	--------	-------	------------
+	# Thing	01/01/2023	05/30/2023	80
+	#
+	def progresscsv(self,csv_filename,showquery=''):
+		db = self.schwiz.dbthings.sqlite_db
+
+		self.schwiz.createload_sqlite_from_csv(csv_filename)
+		tablename = self.schwiz.lastcall_tablename
+		query = """
+			SELECT proj_start,Stages,start_dt,end_dt 
+			FROM (SELECT min(start_dt) as proj_start FROM """ + tablename + ") L, " + tablename + " ORDER BY 3"
+		
+		# =========================================
+
+		rowcount = 0
+		onerundata = db.query(query)
+		column_names = []
+		for k in [i[0] for i in onerundata.description]:
+			column_names.append(k)
+
+		bar_labels = []
+		bar_length = []
+		for row in onerundata:
+			rowcount += 1
+			proj_start = datetime.strptime(row[0], '%m/%d/%Y')
+			bar_labels.append(row[1])
+			bar_length.append(row[2]) # start_dt 
+			#bar_length.append(datetime.strptime(row[3], '%m/%d/%Y')) #end_dt = 
+
+			#start_num = (start_dt - proj_start).days
+			#end_num = (end_dt - proj_start).days
+			#days_start_to_end = (end_dt - start_dt).days
+
+			#ax.barh(taskname, days_start_to_end, left=start_num)
+		
+
+		fig, ax = plt.subplots()
+		ax.barh(bar_labels, width = bar_length) #		ax.barh(bar_labels, width = bar_length) #
+		
+		plt.ylabel(column_names[1])
+		plt.xlabel('Timeline')
+		plt.title(csv_filename)
+		plt.show()
+		# =========================================
+
+		db.execute('DROP TABLE ' + tablename)
 
 
 	#
