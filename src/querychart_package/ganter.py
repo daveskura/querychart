@@ -13,14 +13,20 @@ from pandas import Timestamp
 
 def do_main():
 	#gantter().show_how_to() #
-	gantter().graphit('Tasks by Phase','Phases')
+	gantter().graphit('Tasks by Department','Department')
 
 class gantter():
 	def __init__(self,gantdatacsvfilename = ''): # data.csv
 		print(" chumbo ") #
 		self.datafile = gantdatacsvfilename	
 		self.colorlist = ['#E64646','#E69646', '#34D05C', '#34D0C3', '#3475D0','#336600','#663300','#990000','#3300CC','#CC0000']
+		self.bars = []
 		self.barcolors = {}
+		self.tasknamefield = ''
+		self.teamfield = ''
+		self.startfield = ''
+		self.endfield = ''
+		self.completionfield = ''
 		
 	def show_how_to(self):
 		notes = """
@@ -34,11 +40,11 @@ data expected to look as follows:
 		"""
 		print(notes)
 	def prepare_graph_data(self,df):
-		self.assigncolors(df[self.teamfield])
+		self.assignbars(df[self.teamfield])
 
 		# Using pandas.to_datetime() to convert pandas column to DateTime
-		df['Start'] = pd.to_datetime(df['Start'], format="%m/%d/%Y")
-		df['End'] = pd.to_datetime(df['End'], format="%m/%d/%Y")
+		df[self.startfield] = pd.to_datetime(df[self.startfield], format="%m/%d/%Y")
+		df[self.endfield] = pd.to_datetime(df[self.endfield], format="%m/%d/%Y")
 
 		# project start date
 		proj_start = df.Start.min()
@@ -53,7 +59,7 @@ data expected to look as follows:
 		df['days_start_to_end'] = df.end_num - df.start_num
 
 		# days between start and current progression of each task
-		df['current_num'] = (df.days_start_to_end * df.Completion)
+		df['current_num'] = (df.days_start_to_end * df[self.completionfield])
 
 		df['color'] = df.apply(self.color, axis=1)
 
@@ -65,16 +71,28 @@ data expected to look as follows:
 
 	##### LEGENDS #####
 	def build_legend(self):
-		legend_elements = [Patch(facecolor='#E64646', label='Marketing'),
-											 Patch(facecolor='#E69646', label='Finance'),
-											 Patch(facecolor='#34D05C', label='Engineering'),
-											 Patch(facecolor='#34D0C3', label='Production'),
-											 Patch(facecolor='#3475D0', label='IT')]
+		legend_elements = []
+		for i in range(0,len(self.bars)):
+			legend_elements.append(Patch(facecolor=self.barcolors[self.bars[i]], label=self.bars[i]))
 
-	def graphit(self,graphtitle='PROJECT X', teamfield='Department'):
+		return legend_elements
+
+	def graphit(self
+						,graphtitle				='PROJECT X'
+						,tasknamefield		='Task'
+						,teamfield				='Department'
+						,startfield				='Start'
+						,endfield					='End'
+						,completionfield	='Completion'):
+
+		self.tasknamefield = tasknamefield
+		self.teamfield = teamfield
+		self.startfield = startfield
+		self.endfield = endfield
+		self.completionfield = completionfield
+
 		df = self.getdata_fromcsvfile('data.csv')
 		#df = self.getdata_Demo()
-		self.teamfield = teamfield
 		df,proj_start = self.prepare_graph_data(df)
 
 		##### PLOT #####
@@ -85,7 +103,7 @@ data expected to look as follows:
 		ax.barh(df.Task, df.days_start_to_end, left=df.start_num, color=df.color, alpha=0.5)
 
 		for idx, row in df.iterrows():
-				ax.text(row.end_num+0.1, idx, f"{int(row.Completion*100)}%", va='center', alpha=0.8)
+				ax.text(row.end_num+0.1, idx, f"{int(row[self.completionfield]*100)}%", va='center', alpha=0.8)
 				ax.text(row.start_num-0.1, idx, row.Task, va='center', ha='right', alpha=0.8)
 
 		# grid lines
@@ -135,14 +153,8 @@ data expected to look as follows:
 		ax_top.spines['top'].set_visible(False)
 
 		plt.suptitle(graphtitle)
-
-		##### LEGENDS #####
-		legend_elements = [Patch(facecolor='#E64646', label='Marketing'),
-											 Patch(facecolor='#E69646', label='Finance'),
-											 Patch(facecolor='#34D05C', label='Engineering'),
-											 Patch(facecolor='#34D0C3', label='Production'),
-											 Patch(facecolor='#3475D0', label='IT')]
-
+		
+		legend_elements = self.build_legend()
 		ax1.legend(handles=legend_elements, loc='upper center', ncol=5, frameon=False)
 
 		# clean second axis
@@ -155,13 +167,13 @@ data expected to look as follows:
 
 		plt.show()
 
-	def assigncolors(self,df_col):
+	def assignbars(self,df_col):
 		# assign colors
 		i = 0
 		for val in df_col.unique():
 			if i >= len(self.colorlist[i]):
 				i = 0
-
+			self.bars.append(val)
 			self.barcolors[val] = self.colorlist[i]
 			i += 1
 
@@ -170,7 +182,7 @@ data expected to look as follows:
 
 	def getdata_Demo(self):
 
-		data = {'Task': {0: 'TSK M',
+		data = {self.tasknamefield: {0: 'TSK M',
 										 1: 'TSK N',
 										 2: 'TSK L',
 										 3: 'TSK K',
@@ -185,7 +197,7 @@ data expected to look as follows:
 										 12: 'TSK B',
 										 13: 'TSK A'},
 
-		'Department': {0: 'IT',
+		self.teamfield: {0: 'IT',
 									1: 'MKT',
 									2: 'ENG',
 									3: 'PROD',
@@ -200,7 +212,7 @@ data expected to look as follows:
 									12: 'MKT',
 									13: 'MKT'},
  
-		'Start': {0: Timestamp('2022-03-17 00:00:00'),
+		self.startfield: {0: Timestamp('2022-03-17 00:00:00'),
 						 1: Timestamp('2022-03-17 00:00:00'),
 						 2: Timestamp('2022-03-10 00:00:00'),
 						 3: Timestamp('2022-03-09 00:00:00'),
@@ -215,7 +227,7 @@ data expected to look as follows:
 						 12: Timestamp('2022-02-19 00:00:00'),
 						 13: Timestamp('2022-02-15 00:00:00')},
  
-		'End': {0: Timestamp('2022-03-20 00:00:00'),
+		self.endfield: {0: Timestamp('2022-03-20 00:00:00'),
 					 1: Timestamp('2022-03-19 00:00:00'),
 					 2: Timestamp('2022-03-13 00:00:00'),
 					 3: Timestamp('2022-03-13 00:00:00'),
@@ -230,7 +242,7 @@ data expected to look as follows:
 					 12: Timestamp('2022-02-24 00:00:00'),
 					 13: Timestamp('2022-02-20 00:00:00')},
  
-		'Completion': {0: 0.0,
+		self.completionfield: {0: 0.0,
 									1: 0.0,
 									2: 0.0,
 									3: 0.0,
