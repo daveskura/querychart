@@ -6,68 +6,92 @@
 """
 import sys
 import pandas as pd
+from pandas import DataFrame
+
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Patch
 from pandas import Timestamp
-
+from schemawizard_package.schemawizard import schemawiz
 def do_main():
+	sql = """
+		SELECT 'a Title' as Title	/*-- field[0] = Title */
+				, Task								  -- field[1] = Task Name
+				, Stream							  -- field[2] = Task Group
+				, Start_dt						  -- field[3] = Start Date
+				, End_dt							  -- field[4] = End Date
+				, Completionpct				  -- field[5] = Completion percent from 0.0 - 1.0
+		FROM sampledata.csv
+	"""
+	gantter().gantt_From_sqlcsv('sampledata.csv',sql)
+
 	#gantter().show_how_to() #
-	gantter().graphit('Tasks by Department','Department')
+	#gantter().gantt_From_csv('sampledata.csv','a title','Task','Stream','Start_dt','End_dt','Completionpct','%m/%d/%Y')
+	#gantter().gantt_demo()
 
 class gantter():
 	def __init__(self,gantdatacsvfilename = ''): # data.csv
 		print(" chumbo ") #
+		self.schwiz = schemawiz()
+		self.tasknamefield = 'Task'
+		self.taskgroup = 'Department'
+		self.startfield = 'Start'
+		self.endfield = 'End'
+		self.completionfield = 'Completion'
 		self.datafile = gantdatacsvfilename	
 		self.colorlist = ['#E64646','#E69646', '#34D05C', '#34D0C3', '#3475D0','#336600','#663300','#990000','#3300CC','#CC0000']
 		self.bars = []
 		self.barcolors = {}
-		self.tasknamefield = ''
-		self.teamfield = ''
-		self.startfield = ''
-		self.endfield = ''
-		self.completionfield = ''
+		self.df = ''
 		
 	def show_how_to(self):
 		notes = """
 data expected to look as follows:
 
-	,Task,Department,Start,End,Completion
-	0,TSK M,IT,3/17/2022,3/20/2022,0.0
-	1,TSK N,MKT,3/17/2022,3/19/2022,0.5
-	...
+	Task,Stream,Start_dt,End_dt,Completionpct,Phases
+	TSK M,IT,3/17/2022,3/20/2022,0.0,Phase 1
+	TSK N,MKT,3/17/2022,3/19/2022,0.0,Phase 1
+	TSK L,ENG,3/10/2022,3/13/2022,0.0,Phase 1
+	TSK K,PROD,3/9/2022,3/13/2022,0.0,Phase 2
+	TSK J,PROD,3/4/2022,3/17/2022,0.0,Phase 2
+
+
+sample calls
+gantter().gantt_demo()
+gantter().gantt_From_csv('sampledata.csv','a title','Task','Stream','Start_dt','End_dt','Completionpct','%m/%d/%Y')
+
 
 		"""
 		print(notes)
-	def prepare_graph_data(self,df):
-		self.assignbars(df[self.teamfield])
+	def prepare_graph_data(self):
+		self.assignbars(self.df[self.taskgroup])
 
 		# Using pandas.to_datetime() to convert pandas column to DateTime
-		df[self.startfield] = pd.to_datetime(df[self.startfield], format="%m/%d/%Y")
-		df[self.endfield] = pd.to_datetime(df[self.endfield], format="%m/%d/%Y")
+		self.df[self.startfield] = pd.to_datetime(self.df[self.startfield], format="%m/%d/%Y")
+		self.df[self.endfield] = pd.to_datetime(self.df[self.endfield], format="%m/%d/%Y")
 
 		# project start date
-		proj_start = df.Start.min()
+		proj_start = self.df[self.startfield].min()
 
 		# number of days from project start to task start
-		df['start_num'] = (df.Start-proj_start).dt.days
+		self.df['start_num'] = (self.df[self.startfield]-proj_start).dt.days
 
 		# number of days from project start to end of tasks
-		df['end_num'] = (df.End-proj_start).dt.days
+		self.df['end_num'] = (self.df[self.endfield]-proj_start).dt.days
 
 		# days between start and end of each task
-		df['days_start_to_end'] = df.end_num - df.start_num
+		self.df['days_start_to_end'] = self.df.end_num - self.df.start_num
 
 		# days between start and current progression of each task
-		df['current_num'] = (df.days_start_to_end * df[self.completionfield])
+		self.df['current_num'] = (self.df.days_start_to_end * self.df[self.completionfield])
 
-		df['color'] = df.apply(self.color, axis=1)
+		self.df['color'] = self.df.apply(self.color, axis=1)
 
-		return df,proj_start
+		return proj_start
 
 	# create a column with the color for each team
 	def color(self,row):
-			return self.barcolors[row[self.teamfield]]
+			return self.barcolors[row[self.taskgroup]]
 
 	##### LEGENDS #####
 	def build_legend(self):
@@ -77,32 +101,99 @@ data expected to look as follows:
 
 		return legend_elements
 
-	def graphit(self
-						,graphtitle				='PROJECT X'
-						,tasknamefield		='Task'
-						,teamfield				='Department'
-						,startfield				='Start'
-						,endfield					='End'
-						,completionfield	='Completion'):
+	def check_fields_exist(self):
+		missingfields = 0
+		if self.tasknamefield not in self.df:
+			print('No `' + self.tasknamefield + '` field in data')
+			missingfields += 1
 
-		self.tasknamefield = tasknamefield
-		self.teamfield = teamfield
-		self.startfield = startfield
-		self.endfield = endfield
-		self.completionfield = completionfield
+		if self.taskgroup not in self.df:
+			print('No `' + self.taskgroup + '` field in data')
+			missingfields += 1
 
-		df = self.getdata_fromcsvfile('data.csv')
-		#df = self.getdata_Demo()
-		df,proj_start = self.prepare_graph_data(df)
+		if self.startfield not in self.df:
+			print('No `' + self.startfield + '` field in data')
+			missingfields += 1
 
+		if self.endfield not in self.df:
+			print('No `' + self.endfield + '` field in data')
+			missingfields += 1
+
+		if self.completionfield not in self.df:
+			print('No `' + self.completionfield + '` field in data')
+			missingfields += 1
+
+
+		if missingfields > 0:
+			sys.exit(0)
+
+	def gantt_demo(self):
+		self.df = self.getdata_Demo()
+		self.graphit()
+
+	"""
+		SELECT 'a Title' as title								-- field[0] = Title
+				, 'Task A' as tasknamefield					-- field[1] = Task Name
+				, 'Engineering Team' as taskgroup		-- field[2] = Task Group
+				, '01/01/2023' as startfield				-- field[3] = Start Date
+				, '02/02/2023' as endfield					-- field[4] = End Date
+				, 0.5 as completionfield						-- field[5] = Completion percent from 0.0 - 1.0
+	"""
+	def gantt_From_sqlcsv(self,csvfilename,qry):
+		self.schwiz.createload_sqlite_from_csv(csvfilename)
+		tablename = self.schwiz.lastcall_tablename
+		query = qry.replace(csvfilename,tablename)
+
+		data = self.schwiz.dbthings.sqlite_db.query(query)
+		self.schwiz.dbthings.sqlite_db.execute('DROP TABLE ' + tablename)
+		
+		cols = []
+		for k in [i[0] for i in data.description]:
+			cols.append(k)
+
+		self.df = DataFrame(data)
+		self.df.columns = cols
+		Title = self.df['Title'].min()
+
+		self.graphit(Title,cols[1],cols[2],cols[3],cols[4],cols[5])
+
+
+	def gantt_From_csv(self,csvfilename,graphtitle='',tasknamefield='',taskgroup='',startfield='',endfield='',completionfield='',date_fmt='%m/%d/%Y'):
+
+		self.df = self.getdata_fromcsvfile(csvfilename)
+
+		self.graphit(graphtitle,tasknamefield,taskgroup,startfield,endfield,completionfield)
+		
+	def graphit(self,graphtitle='',tasknamefield='',taskgroup='',startfield='',endfield='',completionfield=''):
+
+		if tasknamefield != '':
+			self.tasknamefield = tasknamefield
+
+		if taskgroup != '':
+			self.taskgroup = taskgroup
+
+		if startfield != '':
+			self.startfield = startfield
+
+		if endfield != '':
+			self.endfield = endfield
+
+		if completionfield != '':
+			self.completionfield = completionfield
+
+		self.check_fields_exist()
+
+		#self.df = self.getdata_fromcsvfile('data.csv')
+		#self.df = self.getdata_Demo()
+		proj_start = self.prepare_graph_data()
 		##### PLOT #####
 		fig, (ax, ax1) = plt.subplots(2, figsize=(16,6), gridspec_kw={'height_ratios':[6, 1]})
 
 		# bars
-		ax.barh(df.Task, df.current_num, left=df.start_num, color=df.color)
-		ax.barh(df.Task, df.days_start_to_end, left=df.start_num, color=df.color, alpha=0.5)
+		ax.barh(self.df.Task, self.df.current_num, left=self.df.start_num, color=self.df.color)
+		ax.barh(self.df.Task, self.df.days_start_to_end, left=self.df.start_num, color=self.df.color, alpha=0.5)
 
-		for idx, row in df.iterrows():
+		for idx, row in self.df.iterrows():
 				ax.text(row.end_num+0.1, idx, f"{int(row[self.completionfield]*100)}%", va='center', alpha=0.8)
 				ax.text(row.start_num-0.1, idx, row.Task, va='center', ha='right', alpha=0.8)
 
@@ -111,9 +202,9 @@ data expected to look as follows:
 		ax.xaxis.grid(color='gray', linestyle='dashed', alpha=0.2, which='both')
 
 		# ticks
-		xticks = np.arange(0, df.end_num.max()+1, 3)
-		xticks_labels = pd.date_range(proj_start, end=df.End.max()).strftime("%m/%d")
-		xticks_minor = np.arange(0, df.end_num.max()+1, 1)
+		xticks = np.arange(0, self.df.end_num.max()+1, 3)
+		xticks_labels = pd.date_range(proj_start, end=self.df[self.endfield].max()).strftime("%m/%d")
+		xticks_minor = np.arange(0, self.df.end_num.max()+1, 1)
 		ax.set_xticks(xticks)
 		ax.set_xticks(xticks_minor, minor=True)
 		ax.set_xticklabels(xticks_labels[::3])
@@ -124,14 +215,14 @@ data expected to look as follows:
 		ax_top = ax.twiny()
 
 		# align x axis
-		ax.set_xlim(0, df.end_num.max())
-		ax_top.set_xlim(0, df.end_num.max())
+		ax.set_xlim(0, self.df.end_num.max())
+		ax_top.set_xlim(0, self.df.end_num.max())
 
 		# top ticks (markings)
-		xticks_top_minor = np.arange(0, df.end_num.max()+1, 7)
+		xticks_top_minor = np.arange(0, self.df.end_num.max()+1, 7)
 		ax_top.set_xticks(xticks_top_minor, minor=True)
 		# top ticks (label)
-		xticks_top_major = np.arange(3.5, df.end_num.max()+1, 7)
+		xticks_top_major = np.arange(3.5, self.df.end_num.max()+1, 7)
 		ax_top.set_xticks(xticks_top_major, minor=False)
 		# week labels
 		xticks_top_labels = [f"Week {i}"for i in np.arange(1, len(xticks_top_major)+1, 1)]
@@ -197,7 +288,7 @@ data expected to look as follows:
 										 12: 'TSK B',
 										 13: 'TSK A'},
 
-		self.teamfield: {0: 'IT',
+		self.taskgroup: {0: 'IT',
 									1: 'MKT',
 									2: 'ENG',
 									3: 'PROD',
