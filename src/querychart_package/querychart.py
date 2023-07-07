@@ -39,6 +39,9 @@ def main():
 	#name,start_dt,end_dt,progress_pct
 	#charter().progresscsv('gant_data.csv')
 
+	#charter().csv_querypiechart('fieldcounts.tsv','SELECT field,counts FROM fieldcounts.tsv ORDER BY field')
+	#charter().csv_querybarchart('SELECT field,counts FROM fieldcounts.tsv','fieldcounts.tsv','this is my title','xlabel','ylabel')
+
 class charter():
 	def __init__(self):
 		self.schwiz = schemawiz()
@@ -111,6 +114,60 @@ class charter():
 		self.schwiz.dbthings.sqlite_db.execute('DROP TABLE ' + tablename)
 
 	#
+	# SELECT field,counts FROM fieldcounts.tsv ORDER BY field
+	#
+	# field	counts
+	# id	4079
+	# Name	3998
+	# CountryCode	232
+	# District	1367
+	# Population	3897
+	#
+	def csv_querypiechart(self,csv_filename,query,xlabel='',ylabel=''):
+		self.schwiz.createload_sqlite_from_csv(csv_filename)
+		tablename = self.schwiz.lastcall_tablename
+		newquery = query.replace(csv_filename,tablename)
+		title = csv_filename
+
+		chartdata = self.schwiz.dbthings.sqlite_db.query(newquery)
+		chartfields = []
+		chartcounts = []
+		colhdr = []
+
+		for k in [i[0] for i in chartdata.description]:
+			colhdr.append(k)
+
+		field_label = colhdr[0]
+		for row in chartdata:
+			# first col will be label
+			chartfields.append(row[0])
+			chartcounts.append(row[1])
+
+
+		fig, ax = plt.subplots(figsize=(6, 3), subplot_kw=dict(aspect="equal"))
+
+		def func(pct, allvals):
+				absolute = int(np.round(pct/100.*np.sum(allvals)))
+				return f"{pct:.1f}%"
+
+
+		wedges, texts, autotexts = ax.pie(chartcounts, autopct=lambda pct: func(pct, chartcounts),
+																			textprops=dict(color="w"))
+
+		ax.legend(wedges, chartfields,
+							title=field_label,
+							loc="center left",
+							bbox_to_anchor=(1, 0, 0.5, 1))
+
+		plt.setp(autotexts, size=8, weight="bold")
+
+		ax.set_title(title)
+
+		plt.show()
+
+		self.schwiz.dbthings.sqlite_db.execute('DROP TABLE ' + tablename)
+
+	#
 	# SELECT cal_dt,sales_amt,cost FROM sales.csv ORDER BY cal_dt 
 	#
 	# cal_dt,product,customer,sales_amt,cost
@@ -128,6 +185,52 @@ class charter():
 		self.querychart(title,self.schwiz.dbthings.sqlite_db,newquery)
 
 		self.schwiz.dbthings.sqlite_db.execute('DROP TABLE ' + tablename)
+
+	#
+	# SELECT cal_dt,sales_amt,cost FROM sales.csv ORDER BY cal_dt 
+	#
+	# cal_dt,product,customer,sales_amt,cost
+	# 2023/03/29,food,dave,10.99,8.55
+	# 2023/03/30,electronics,dave,15.99,18.45
+	# 2023/03/31,booze,dave,20.99,2.35
+	# 2023/04/01,food,dave,5.99,43.25
+	#
+	def csv_querybarchart(self,query,csv_filename='',ptitle='',xlabel='',ylabel=''):
+
+		field_label = xlabel
+		measure_label = ylabel
+		title = ptitle
+
+		if csv_filename != '':
+			self.schwiz.createload_sqlite_from_csv(csv_filename)
+			tablename = self.schwiz.lastcall_tablename
+			newquery = query.replace(csv_filename,tablename)
+		else:
+			newquery = query
+
+		chartdata = self.schwiz.dbthings.sqlite_db.query(newquery)
+		chartfields = []
+		chartcounts = []
+		colhdr = []
+
+		for k in [i[0] for i in chartdata.description]:
+			colhdr.append(k)
+
+
+		for row in chartdata:
+			# first col will be label
+			chartfields.append(row[0])
+			chartcounts.append(row[1])
+
+		plt.title(title)
+		plt.xlabel(field_label)
+		plt.ylabel(measure_label)
+
+		plt.bar(chartfields, chartcounts, color = "red")
+		plt.show()
+
+		if csv_filename != '':
+			self.schwiz.dbthings.sqlite_db.execute('DROP TABLE ' + tablename)
 
 
 	# widequerychart charts each row as a line
