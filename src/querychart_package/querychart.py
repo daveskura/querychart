@@ -40,7 +40,9 @@ def main():
 	#charter().progresscsv('gant_data.csv')
 
 	#charter().csv_querypiechart('fieldcounts.tsv','SELECT field,counts FROM fieldcounts.tsv ORDER BY field')
-	#charter().csv_querybarchart('SELECT field,counts FROM fieldcounts.tsv','fieldcounts.tsv','this is my title','xlabel','ylabel')
+	#charter().csv_querybarchart('SELECT cal_dt,sales_amt,cost FROM sales.csv ORDER BY cal_dt','sales.csv','this is my title','xlabel','ylabel')
+	#charter().csv_querybarchart('SELECT field,counts FROM fieldcounts.tsv','fieldcounts.tsv','this is my title','xlabel','ylabel',-1)
+	#charter().tester('SELECT field,counts FROM fieldcounts.tsv','fieldcounts.tsv','this is my title','xlabel','ylabel')
 
 class charter():
 	def __init__(self):
@@ -186,6 +188,27 @@ class charter():
 
 		self.schwiz.dbthings.sqlite_db.execute('DROP TABLE ' + tablename)
 
+	def tester(self):
+
+			
+		# creating the dataset
+		data = {'C':20, 'C++':15, 'Java':30,
+						'Python':35}
+		courses = list(data.keys())
+		values = list(data.values())
+			
+		fig = plt.figure(figsize = (10, 5))
+		 
+		# creating the bar plot
+		plt.bar(courses, values, color ='maroon',
+						width = 0.4)
+		 
+		plt.xlabel("Courses offered")
+		plt.ylabel("No. of students enrolled")
+		plt.title("Students enrolled in different courses")
+		plt.show()
+
+
 	#
 	# SELECT cal_dt,sales_amt,cost FROM sales.csv ORDER BY cal_dt 
 	#
@@ -195,7 +218,7 @@ class charter():
 	# 2023/03/31,booze,dave,20.99,2.35
 	# 2023/04/01,food,dave,5.99,43.25
 	#
-	def csv_querybarchart(self,query,csv_filename='',ptitle='',xlabel='',ylabel=''):
+	def csv_querybarchart(self,query,csv_filename='',ptitle='',xlabel='',ylabel='',ipagesize=-1):
 
 		field_label = xlabel
 		measure_label = ylabel
@@ -209,24 +232,65 @@ class charter():
 			newquery = query
 
 		chartdata = self.schwiz.dbthings.sqlite_db.query(newquery)
-		chartfields = []
-		chartcounts = []
-		colhdr = []
+		
+		if ipagesize == -1:
+			pagesize = chartdata.rowcount
+		else:
+			pagesize = ipagesize
 
-		for k in [i[0] for i in chartdata.description]:
-			colhdr.append(k)
+		at_least_cnt = int(chartdata.rowcount / pagesize)
+		remainder_cnt = chartdata.rowcount % pagesize
+		for i in range(0,at_least_cnt):
+			gstrt = 1 + i*pagesize
+			gend = gstrt + pagesize - 1
+			#print('gstrt:',gstrt)
+			#print('gend:',gend)
+
+			chartfields = []
+			chartcounts = []
+
+			rows = 0
+			for row in chartdata:
+				rows += 1
+				if (rows >= gstrt) and (rows <= gend):
+					# first col will be label
+					chartfields.append(row[0])
+					chartcounts.append(row[1])
+			
+			if rows > 7:
+				fig = plt.figure(figsize = (14, 5))
+			else:
+				fig = plt.figure(figsize = (5, 5))
 
 
-		for row in chartdata:
-			# first col will be label
-			chartfields.append(row[0])
-			chartcounts.append(row[1])
+			plt.bar(chartfields, chartcounts, color = "red")
+			plt.title(title)
+			plt.xlabel(field_label)
+			plt.ylabel(measure_label)
 
-		plt.title(title)
-		plt.xlabel(field_label)
-		plt.ylabel(measure_label)
+			fig.show()
+		gstrt = at_least_cnt*pagesize
+		if gstrt < chartdata.rowcount:
+			chartfields = []
+			chartcounts = []
+			rows = 0
 
-		plt.bar(chartfields, chartcounts, color = "red")
+			for row in chartdata:
+				#print(rows,' - ',row[0])
+				rows += 1
+				if (rows > (at_least_cnt*pagesize)):
+					# first col will be label
+					chartfields.append(row[0])
+					chartcounts.append(row[1])
+
+			fig = plt.figure(figsize = (5, 5))
+			plt.bar(chartfields, chartcounts, color = "red")
+			plt.title(title)
+			plt.xlabel(field_label)
+			plt.ylabel(measure_label)
+
+			fig.show()
+
 		plt.show()
 
 		if csv_filename != '':
