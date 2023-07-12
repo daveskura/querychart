@@ -1,12 +1,15 @@
 [build-system]
-requires = ["hatchling","schemawizard_package"]
+requires = ["hatchling","schemawizard_package","matplotlib","pandas","numpy"]
 
 build-backend = "hatchling.build"
 
 [project]
 name = "querychart_package"
-version = "2.0.3"
+version = "2.0.6"
 dependencies = [
+  'matplotlib',
+  'pandas',
+  'numpy',
   'schemawizard_package >= 2.3.5'
 ]
 authors = [
